@@ -150,89 +150,6 @@ class outconv(nn.Module):
         return x
 
 
-# class fuconv(nn.Module):
-#     def __init__(self, in_ch, out_ch):
-#         super(fuconv, self).__init__()
-#         # Skeleton path
-#         self.conv_1 = nn.Conv2d(in_ch, out_ch // 8, 3, stride=2, padding=1)
-#         self.dsconv1 = DSConv(out_ch // 8, out_ch // 8, 1, 1, 0, True, 'cuda')
-#         self.down1 = nn.MaxPool2d(2)
-#         self.down2 = nn.MaxPool2d(2)
-#         self.conv_2 = nn.Conv2d(out_ch // 8, out_ch // 4, 3, stride=2, padding=1)
-#
-#         # Encoder path
-#         self.conv_3 = nn.Conv2d(out_ch, out_ch // 4, 1)
-#         self.se_enc = SE_Block(out_ch // 4)
-#         self.se_ske = SE_Block(out_ch // 4)
-#
-#         # Fusion
-#         self.conv_fuse = nn.Conv2d(out_ch // 2, out_ch, 1)
-#         self.se_fuse = SE_Block(out_ch)
-#         self.dsconv2 = DSConv(out_ch, out_ch, 1, 1, 0, True, 'cuda')
-#
-#         # Residual adjustment
-#         self.res_conv = nn.Conv2d(out_ch, out_ch, 1)
-#
-#     def forward(self, x_ske, x_enc):
-#         res = self.res_conv(x_enc)
-#
-#         # Skeleton path
-#         x_ske = self.conv_1(x_ske)
-#         x_ske = self.dsconv1(x_ske)
-#         x_ske = self.down1(x_ske)
-#         x_ske = self.down2(x_ske)
-#         x_ske = self.conv_2(x_ske)
-#         x_ske = self.se_ske(x_ske)
-#
-#         # Encoder path
-#         x_enc = self.conv_3(x_enc)
-#         x_enc = self.se_enc(x_enc)
-#
-#         # Skeleton 引导
-#         x_enc_guided = torch.sigmoid(x_ske) * x_enc
-#
-#         # Concat & fuse
-#         x_fu = torch.cat([x_ske, x_enc_guided], dim=1)
-#         x = self.conv_fuse(x_fu)
-#         x = self.se_fuse(x)
-#
-#         # Residual
-#         x = x + res
-#
-#         # Final DSConv
-#         x_out = self.dsconv2(x)
-#         return x_out
-
-
-
-# class fuconv(nn.Module):
-#     def __init__(self, in_ch, out_ch):
-#         super(fuconv, self).__init__()
-#         self.conv_1 = nn.Conv2d(in_ch, out_ch // 8, 3, stride=2, padding=1)
-#         self.conv_2 = nn.Conv2d(out_ch // 8, out_ch // 4, 3, stride=2, padding=1)
-#         self.conv_3 = nn.Conv2d(out_ch, out_ch // 4, 1)
-#
-#
-#         self.conv = nn.Conv2d(out_ch // 2, out_ch, 1)
-#         self.dsconv = DSConv(out_ch, out_ch, 1, 1, 0, True, 'cuda')
-#         self.res = nn.Conv2d(out_ch, out_ch, 1)
-#         self.se = SE_Block(out_ch)
-#
-#     def forward(self, x_ske, x_enc):
-#         res = x_enc
-#         x_ske = self.skeleton_path(x_ske)
-#         x_enc = self.enc_path(x_enc)
-#
-#         x_fu = torch.cat([x_ske, x_enc], dim=1)
-#         x = self.conv(x_fu)
-#         x = self.se(x)
-#         res = self.res(res)
-#         x = x + res
-#         x_out = self.dsconv(x)
-#
-#         return x_out
-
-# freeze_gcn_fuconv
 class fuconv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(fuconv, self).__init__()
@@ -258,40 +175,6 @@ class fuconv(nn.Module):
         # x = x + res
         # x_out = self.dsconv(x)
         return x_fu
-
-
-# class fuconv(nn.Module):
-#     def __init__(self, in_ch, out_ch):
-#         super(fuconv, self).__init__()
-#         self.skeleton_path = nn.Sequential(nn.Conv2d(in_ch, out_ch // 8, 3, 2, 1),
-#                                            nn.MaxPool2d(4),
-#                                            nn.Conv2d(out_ch // 8, out_ch // 4, 3, 2, 1))
-#
-#         self.enc_path = nn.Conv2d(out_ch, out_ch // 4, 1)
-#         self.adjust_conv  = nn.Conv2d(out_ch // 2, out_ch // 4, 1)
-#
-#
-#         self.conv = nn.Conv2d(out_ch // 4, out_ch, 1)
-#         self.dsconv = DSConv(out_ch, out_ch, 1, 1, 0, True, 'cuda')
-#         self.res = nn.Conv2d(out_ch, out_ch, 1)
-#         self.se = SE_Block(out_ch)
-#
-#     def forward(self, x_ske, x_enc):
-#         res = x_enc
-#         x_ske = self.skeleton_path(x_ske)
-#         x_enc = self.enc_path(x_enc)
-#
-#         x_c = torch.cat([x_ske, x_enc], dim=1)
-#         x_c = self.adjust_conv(x_c)
-#         x_m = torch.mul(x_ske, x_enc)
-#         x_fu = x_c + x_m
-#         x = self.conv(x_fu)
-#         x = self.se(x)
-#         res = self.res(res)
-#         x = x + res
-#         x_out = self.dsconv(x)
-#
-#         return x_out
 
 
 class extra_fea(nn.Module):
@@ -478,16 +361,11 @@ class UNet(nn.Module):
 
         # ske branch
         ske, pre_ske, ske4, ske3, ske2, ske1, ske_1 = self.ske_dec(x1, x2, x3, x4, x5)
-        # free1
-        # pre_ske = self.final(ske_1)
+
         # seg branch
         pre_seg1, seg_1 = self.seg_dec(pre_ske, x1, x2, x3, x4, x5, ske4, ske3, ske2, ske1)
 
-        # free2
         pre_seg = self.final(seg_1+ske_1)
-        # free3在free1基础上编码器加入多尺度
-        # FREE4在FREE1基础上seg解码器加入多尺度
-
 
         return ske, pre_seg, pre_seg1
 
